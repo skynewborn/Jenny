@@ -5,12 +5,10 @@
  *
  * For bug report, please refer to github issue tracker https://github.com/LanderlYoung/Jenny/issues.
  */
-
 /* C++ header file for class io/github/landerlyoung/jennysampleapp/NativeDrawable */
 #pragma once
 
 #include <jni.h>
-
 
 namespace NativeDrawable {
 
@@ -46,6 +44,7 @@ void JNICALL draw(JNIEnv* env, jobject thiz, jobject canvas);
  */
 void JNICALL release(JNIEnv* env, jobject thiz);
 
+
 /**
 * register Native functions
 * @returns success or not
@@ -54,41 +53,41 @@ inline bool registerNativeFunctions(JNIEnv* env) {
 // 1. C++20 has u8"" string as char8_t type, we should cast them.
 // 2. jni.h has JNINativeMethod::name as char* type not const char*. (while Android does)
 #define jenny_u8cast(u8) const_cast<char *>(reinterpret_cast<const char *>(u8))
-   const JNINativeMethod gsNativeMethods[] = {
+#define jenny_fpcast(fn) reinterpret_cast<void *>(fn)
+    const JNINativeMethod nativeMethods[] = {
        {
            /* method name      */ jenny_u8cast(u8"nativeInit"),
            /* method signature */ jenny_u8cast(u8"()J"),
-           /* function pointer */ reinterpret_cast<void *>(nativeInit)
+           /* function pointer */ jenny_fpcast(nativeInit)
        },
        {
            /* method name      */ jenny_u8cast(u8"onClick"),
            /* method signature */ jenny_u8cast(u8"()V"),
-           /* function pointer */ reinterpret_cast<void *>(onClick)
+           /* function pointer */ jenny_fpcast(onClick)
        },
        {
            /* method name      */ jenny_u8cast(u8"draw"),
            /* method signature */ jenny_u8cast(u8"(Landroid/graphics/Canvas;)V"),
-           /* function pointer */ reinterpret_cast<void *>(draw)
+           /* function pointer */ jenny_fpcast(draw)
        },
        {
            /* method name      */ jenny_u8cast(u8"release"),
            /* method signature */ jenny_u8cast(u8"()V"),
-           /* function pointer */ reinterpret_cast<void *>(release)
+           /* function pointer */ jenny_fpcast(release)
        }
    };
 
-   const int gsMethodCount = sizeof(gsNativeMethods) / sizeof(JNINativeMethod);
+   const int nativeMethodCount = sizeof(nativeMethods) / sizeof(JNINativeMethod);
 
    bool success = false;
    jclass clazz = env->FindClass(jenny_u8cast(FULL_CLASS_NAME));
    if (clazz != nullptr) {
-       success = !env->RegisterNatives(clazz, gsNativeMethods, gsMethodCount);
+       success = !env->RegisterNatives(clazz, nativeMethods, nativeMethodCount);
        env->DeleteLocalRef(clazz);
    }
    return success;
+#undef jenny_fpcast
 #undef jenny_u8cast
 }
 
-} // endof namespace NativeDrawable
-
-
+} // end of namespace NativeDrawable

@@ -41,12 +41,12 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
+        mTextView = findViewById(R.id.text);
 
         mNativeDrawable = new NativeDrawable();
-        View bg = findViewById(R.id.text);
-        bg.setBackground(mNativeDrawable);
-        bg.setOnClickListener(v -> {
-            bg.invalidate();
+        mTextView.setBackground(mNativeDrawable);
+        mTextView.setOnClickListener(v -> {
+            mTextView.invalidate();
             mNativeDrawable.onClick();
         });
 
@@ -56,7 +56,6 @@ public class MainActivity extends AppCompatActivity {
         ComputeIntensiveClass.runJniHelperTest();
 
         final ComputeIntensiveClass nativeClass = new ComputeIntensiveClass();
-        mTextView = findViewById(R.id.text);
         mTextView.setText("1 + 2 = " + nativeClass.addInNative(1, 2) + "\n");
         mTextView.append(ComputeIntensiveClass.greet());
         ComputeIntensiveClass.testOverload();
@@ -121,9 +120,4 @@ public class MainActivity extends AppCompatActivity {
         mTextView.append(msg);
     }
 
-    public void test(Callback callback) {
-        int a = Callback.COMPILE_CONSTANT_INT;
-        int b = callback.count;
-        int c = a + b;
-    }
 }

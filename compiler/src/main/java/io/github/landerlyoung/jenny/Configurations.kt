@@ -13,15 +13,12 @@ package io.github.landerlyoung.jenny
  */
 
 data class Configurations(
-        val threadSafe: Boolean = true,
-        val errorLoggerFunction: String?,
-        val outputDirectory: String?,
-        val fusionProxyHeaderName: String,
-        val headerOnlyProxy: Boolean = true,
-        val useJniHelper: Boolean = false
+    val threadSafe: Boolean = true,
+    val errorLoggerFunction: String?,
+    val outputDirectory: String?,
 ) {
     companion object {
-        private const val PREFIX = "jenny."
+        private const val PREFIX = ""
 
         val THREAD_SAFE = PREFIX + Configurations::threadSafe.name
 
@@ -33,28 +30,16 @@ data class Configurations(
 
         val OUTPUT_DIRECTORY = PREFIX + Configurations::outputDirectory.name
 
-        val FUSION_PROXY_HEADER_NAME = PREFIX + Configurations::fusionProxyHeaderName.name
-
-        val HEADER_ONLY_PROXY = PREFIX + Configurations::headerOnlyProxy.name
-
-        val USE_JNI_HELPER = PREFIX + Configurations::useJniHelper.name
-
         val ALL_OPTIONS = setOf(
-                THREAD_SAFE,
-                ERROR_LOGGER_FUNCTION,
-                OUTPUT_DIRECTORY,
-                FUSION_PROXY_HEADER_NAME,
-                HEADER_ONLY_PROXY,
-                USE_JNI_HELPER
+            THREAD_SAFE,
+            ERROR_LOGGER_FUNCTION,
+            OUTPUT_DIRECTORY,
         )
 
         fun fromOptions(options: Map<String, String>) = Configurations(
-                options[THREAD_SAFE] != false.toString(),
-                options[ERROR_LOGGER_FUNCTION],
-                options[OUTPUT_DIRECTORY],
-                options[FUSION_PROXY_HEADER_NAME] ?: Constants.JENNY_FUSION_PROXY_HEADER_NAME,
-                options[HEADER_ONLY_PROXY] != false.toString(),
-                options[USE_JNI_HELPER] == true.toString()
+            options[THREAD_SAFE] != false.toString(),
+            options[ERROR_LOGGER_FUNCTION],
+            options[OUTPUT_DIRECTORY],
         )
 
         @JvmStatic

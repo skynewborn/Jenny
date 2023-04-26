@@ -1,0 +1,66 @@
+#parse("templates/notice.vm")
+/* C++ header file for class $slashClassName */
+#pragma once
+
+#include <jni.h>
+
+#foreach ($namespace in $namespaces)
+namespace $namespace {
+#end
+namespace $className {
+
+// DO NOT modify
+static constexpr auto FULL_CLASS_NAME = u8"$slashClassName";
+
+#foreach ($constant in $constants)
+$constant
+#end
+
+#foreach ($method in $methods)
+/*
+ * Class:     $fullClassName
+ * Method:    $method.javaModifiers $method.returnType ${method.methodName}($method.javaParameters)
+ * Signature: $method.signature
+ */
+$method.jniReturnType JNICALL ${method.symbol}($method.nativeParameters);
+
+#end
+
+/**
+* register Native functions
+* @returns success or not
+*/
+inline bool registerNativeFunctions(JNIEnv* env) {
+// 1. C++20 has u8"" string as char8_t type, we should cast them.
+// 2. jni.h has JNINativeMethod::name as char* type not const char*. (while Android does)
+#[[#define jenny_u8cast(u8) const_cast<char *>(reinterpret_cast<const char *>(u8))
+#define jenny_fpcast(fn) reinterpret_cast<void *>(fn)]]#
+    const JNINativeMethod nativeMethods[] = {
+#foreach ($method in $methods)
+       {
+           /* method name      */ jenny_u8cast(u8"$method.methodName"),
+           /* method signature */ jenny_u8cast(u8"$method.signature"),
+           /* function pointer */ jenny_fpcast($method.symbol)
+       }#if ($foreach.hasNext),
+#end
+#end
+
+   };
+
+   const int nativeMethodCount = sizeof(nativeMethods) / sizeof(JNINativeMethod);
+
+   bool success = false;
+   jclass clazz = env->FindClass(jenny_u8cast(FULL_CLASS_NAME));
+   if (clazz != nullptr) {
+       success = !env->RegisterNatives(clazz, nativeMethods, nativeMethodCount);
+       env->DeleteLocalRef(clazz);
+   }
+   return success;
+#undef jenny_fpcast
+#undef jenny_u8cast
+}
+
+} // end of namespace $className
+#foreach ($namespace in $namespaces)
+} // end of namespace $namespace
+#end

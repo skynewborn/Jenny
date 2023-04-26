@@ -15,6 +15,7 @@
  */
 package io.github.landerlyoung.jenny
 
+import io.github.landerlyoung.jenny.models.CppClass
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.TypeElement
 import javax.tools.Diagnostic
@@ -25,7 +26,10 @@ import javax.tools.Diagnostic
  * Time:   00:42
  * Life with Passion, Code with Creativity.
  */
-abstract class AbsCodeGenerator(protected val mEnv: Environment, protected val mClazz: TypeElement) {
+abstract class AbsCodeGenerator(
+    protected val mEnv: Environment,
+    protected val mClazz: TypeElement
+) {
     protected val mHelper: HandyHelper
 
     /** like com.example_package.SomeClass$InnerClass  */
@@ -47,9 +51,10 @@ abstract class AbsCodeGenerator(protected val mEnv: Environment, protected val m
 
     init {
         if (mClazz.kind != ElementKind.CLASS
-                && mClazz.kind != ElementKind.INTERFACE
-                && mClazz.kind != ElementKind.ENUM
-                && mClazz.kind != ElementKind.ANNOTATION_TYPE) {
+            && mClazz.kind != ElementKind.INTERFACE
+            && mClazz.kind != ElementKind.ENUM
+            && mClazz.kind != ElementKind.ANNOTATION_TYPE
+        ) {
             error("type element $mClazz is not class type")
         }
         mHelper = HandyHelper(mEnv)

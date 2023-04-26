@@ -8,31 +8,34 @@
 #pragma once
 
 #include <jni.h>
-#include <assert.h>                        
+#include <assert.h>
 #include <atomic>
 #include <mutex>
 
-#include "jnihelper.h"
+#include "jnigen/jni_helper.h"
 
-namespace java { namespace okhttp {
+// external logger function
+void jennySampleErrorLog(JNIEnv* env, const char* error);
+
+
+namespace java {
+namespace okhttp {
 class CallProxy {
 
 public:
-    static constexpr auto FULL_CLASS_NAME = "okhttp3/Call";
-
+    static constexpr auto FULL_CLASS_NAME = u8"okhttp3/Call";
 
 
 public:
-
     static bool initClazz(JNIEnv* env);
-    
+
     static void releaseClazz(JNIEnv* env);
 
     static void assertInited(JNIEnv* env) {
         auto initClazzSuccess = initClazz(env);
         assert(initClazzSuccess);
     }
-    
+
 
     // method: public abstract okhttp3.Request request()
     static jobject request(JNIEnv* env, jobject thiz) {
@@ -83,14 +86,12 @@ public:
     }
 
 
-    // ====== jni helper ======
+
 private:
     ::jenny::LocalRef<jobject> _local;
     ::jenny::GlobalRef<jobject> _global;
- 
-public:
 
-    // jni helper
+public:
     ::jenny::LocalRef<jobject> getThis(bool owned = true) const {
         if (_local) {
             if (owned) {
@@ -107,69 +108,77 @@ public:
     CallProxy(jobject ref, bool owned = false): _local(ref, owned) {
        assertInited(::jenny::Env().get());
     }
-   
+
     CallProxy(::jenny::LocalRef<jobject> ref): _local(std::move(ref)) {
        assertInited(::jenny::Env().get());
     }
-   
+
     CallProxy(::jenny::GlobalRef<jobject> ref): _global(std::move(ref)) {
        assertInited(::jenny::Env().get());
     }
-   
 
-    // for jni helper
+
     // method: public abstract okhttp3.Request request()
     ::jenny::LocalRef<jobject> request() const {
-        ::jenny::Env env; ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false); jobject thiz = jennyLocalRef.get();
+        ::jenny::Env env;
+        ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false);
+        jobject thiz = jennyLocalRef.get();
         return ::jenny::LocalRef<jobject>(env->CallObjectMethod(thiz, getClassInitState().sMethod_request_0));
     }
 
-    // for jni helper
     // method: public abstract okhttp3.Response execute()
     ::jenny::LocalRef<jobject> execute() const {
-        ::jenny::Env env; ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false); jobject thiz = jennyLocalRef.get();
+        ::jenny::Env env;
+        ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false);
+        jobject thiz = jennyLocalRef.get();
         return ::jenny::LocalRef<jobject>(env->CallObjectMethod(thiz, getClassInitState().sMethod_execute_0));
     }
 
-    // for jni helper
     // method: public abstract void enqueue(okhttp3.Callback arg0)
     void enqueue(const ::jenny::LocalRef<jobject>& arg0) const {
-        ::jenny::Env env; ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false); jobject thiz = jennyLocalRef.get();
+        ::jenny::Env env;
+        ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false);
+        jobject thiz = jennyLocalRef.get();
         env->CallVoidMethod(thiz, getClassInitState().sMethod_enqueue_0, arg0.get());
     }
 
-    // for jni helper
     // method: public abstract void cancel()
     void cancel() const {
-        ::jenny::Env env; ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false); jobject thiz = jennyLocalRef.get();
+        ::jenny::Env env;
+        ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false);
+        jobject thiz = jennyLocalRef.get();
         env->CallVoidMethod(thiz, getClassInitState().sMethod_cancel_0);
     }
 
-    // for jni helper
     // method: public abstract boolean isExecuted()
     jboolean isExecuted() const {
-        ::jenny::Env env; ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false); jobject thiz = jennyLocalRef.get();
+        ::jenny::Env env;
+        ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false);
+        jobject thiz = jennyLocalRef.get();
         return env->CallBooleanMethod(thiz, getClassInitState().sMethod_isExecuted_0);
     }
 
-    // for jni helper
     // method: public abstract boolean isCanceled()
     jboolean isCanceled() const {
-        ::jenny::Env env; ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false); jobject thiz = jennyLocalRef.get();
+        ::jenny::Env env;
+        ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false);
+        jobject thiz = jennyLocalRef.get();
         return env->CallBooleanMethod(thiz, getClassInitState().sMethod_isCanceled_0);
     }
 
-    // for jni helper
     // method: public abstract okio.Timeout timeout()
     ::jenny::LocalRef<jobject> timeout() const {
-        ::jenny::Env env; ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false); jobject thiz = jennyLocalRef.get();
+        ::jenny::Env env;
+        ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false);
+        jobject thiz = jennyLocalRef.get();
         return ::jenny::LocalRef<jobject>(env->CallObjectMethod(thiz, getClassInitState().sMethod_timeout_0));
     }
 
-    // for jni helper
     // method: public abstract okhttp3.Call clone()
     ::jenny::LocalRef<jobject> clone() const {
-        ::jenny::Env env; ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false); jobject thiz = jennyLocalRef.get();
+        ::jenny::Env env;
+        ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false);
+        jobject thiz = jennyLocalRef.get();
         return ::jenny::LocalRef<jobject>(env->CallObjectMethod(thiz, getClassInitState().sMethod_clone_0));
     }
 
@@ -177,21 +186,20 @@ public:
 
 private:
     struct ClassInitState {
-    // thread safe init
-    std::atomic_bool sInited {};
-    std::mutex sInitLock {};
+        // thread safe init
+        std::atomic_bool sInited {};
+        std::mutex sInitLock {};
+        jclass sClazz = nullptr;
 
-    jclass sClazz = nullptr;
 
-    jmethodID sMethod_request_0 = nullptr;
-    jmethodID sMethod_execute_0 = nullptr;
-    jmethodID sMethod_enqueue_0 = nullptr;
-    jmethodID sMethod_cancel_0 = nullptr;
-    jmethodID sMethod_isExecuted_0 = nullptr;
-    jmethodID sMethod_isCanceled_0 = nullptr;
-    jmethodID sMethod_timeout_0 = nullptr;
-    jmethodID sMethod_clone_0 = nullptr;
-
+        jmethodID sMethod_request_0 = nullptr;
+        jmethodID sMethod_execute_0 = nullptr;
+        jmethodID sMethod_enqueue_0 = nullptr;
+        jmethodID sMethod_cancel_0 = nullptr;
+        jmethodID sMethod_isExecuted_0 = nullptr;
+        jmethodID sMethod_isCanceled_0 = nullptr;
+        jmethodID sMethod_timeout_0 = nullptr;
+        jmethodID sMethod_clone_0 = nullptr;
 
     }; // endof struct ClassInitState
 
@@ -201,15 +209,7 @@ private:
     }
 
 };
-} } // endof namespace java::okhttp
 
-
-
-
-// external logger function passed by jenny.errorLoggerFunction
-void jennySampleErrorLog(JNIEnv* env, const char* error);
-
-namespace java { namespace okhttp {
 
 /*static*/ inline bool CallProxy::initClazz(JNIEnv* env) {
 #define JENNY_CHECK_NULL(val)                      \
@@ -233,28 +233,20 @@ namespace java { namespace okhttp {
 
             state.sMethod_request_0 = env->GetMethodID(state.sClazz, "request", "()Lokhttp3/Request;");
             JENNY_CHECK_NULL(state.sMethod_request_0);
-
             state.sMethod_execute_0 = env->GetMethodID(state.sClazz, "execute", "()Lokhttp3/Response;");
             JENNY_CHECK_NULL(state.sMethod_execute_0);
-
             state.sMethod_enqueue_0 = env->GetMethodID(state.sClazz, "enqueue", "(Lokhttp3/Callback;)V");
             JENNY_CHECK_NULL(state.sMethod_enqueue_0);
-
             state.sMethod_cancel_0 = env->GetMethodID(state.sClazz, "cancel", "()V");
             JENNY_CHECK_NULL(state.sMethod_cancel_0);
-
             state.sMethod_isExecuted_0 = env->GetMethodID(state.sClazz, "isExecuted", "()Z");
             JENNY_CHECK_NULL(state.sMethod_isExecuted_0);
-
             state.sMethod_isCanceled_0 = env->GetMethodID(state.sClazz, "isCanceled", "()Z");
             JENNY_CHECK_NULL(state.sMethod_isCanceled_0);
-
             state.sMethod_timeout_0 = env->GetMethodID(state.sClazz, "timeout", "()Lokio/Timeout;");
             JENNY_CHECK_NULL(state.sMethod_timeout_0);
-
             state.sMethod_clone_0 = env->GetMethodID(state.sClazz, "clone", "()Lokhttp3/Call;");
             JENNY_CHECK_NULL(state.sMethod_clone_0);
-
 
 
             state.sInited = true;
@@ -277,4 +269,5 @@ namespace java { namespace okhttp {
 }
 
 
-} } // endof namespace java::okhttp
+} // end of namespace java
+} // end of namespace okhttp

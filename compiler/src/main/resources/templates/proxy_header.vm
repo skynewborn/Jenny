@@ -1,0 +1,354 @@
+#parse("templates/notice.vm")
+#pragma once
+
+#include <jni.h>
+#include <assert.h>
+#if ($threadSafe)
+#include <atomic>
+#include <mutex>
+#end
+
+#include "jnigen/jni_helper.h"
+
+#if ($errorLogger)
+// external logger function
+void ${errorLogger}(JNIEnv* env, const char* error);
+#end
+
+#macro (methodPrologue $useJniHelper $isStatic)
+#if ($useJniHelper)##
+        ::jenny::Env env;
+#if ($isStatic)##
+        assertInited(env.get());
+#else##
+        ::jenny::LocalRef<jobject> jennyLocalRef = getThis(false);
+        jobject thiz = jennyLocalRef.get();
+#end##
+#else##
+        assertInited(env);
+#end##
+#end
+#macro (getJniMethodParam $method $useJniHelper)
+#set ($enclosingClassParam = $class.getEnclosingElementJniParam($useJniHelper))
+#set ($methodParams = $method.getJniMethodParam($useJniHelper))
+#if ($enclosingClassParam != "")##
+$enclosingClassParam enclosingClass##
+#if ($methodParams != ""), #end##
+#end##
+$methodParams##
+#end
+#macro (getJniMethodParamVal $method $useJniHelper)
+#set ($methodParamVal = $method.getJniMethodParamVal($useJniHelper))
+#if ($class.nestedClass)##
+, enclosingClass##
+#if ($useJniHelper)##
+.get()##
+#end##
+#end##
+#if ($methodParamVal != ""), #end##
+$methodParamVal##
+#end
+#macro (buildConstructorDefine $ctor $useJniHelper)
+    #set ($param = "#getJniMethodParam($ctor, $useJniHelper)")
+    #set ($returnType = "##
+#if ($useJniHelper)##
+${className}##
+#else##
+jobject##
+#end")
+    #set ($param = "#getJniMethodParam($ctor, $useJniHelper)")
+    // construct: ${ctor.javaModifiers} ${javaClassName}(${ctor.javaParameters})
+    static $returnType newInstance${ctor.resolvedPostFix}(##
+#if (!$useJniHelper)##
+JNIEnv* env#if ($param != ""), #end##
+#end##
+${param}) {
+#methodPrologue($useJniHelper, true)
+        return env->NewObject(getClassInitState().sClazz, getClassInitState().sConstruct_${ctor.index}#getJniMethodParamVal($ctor, $useJniHelper));
+    }
+#end
+#macro (buildMethodDefine $m $useJniHelper)
+    #set ($isStatic = $m.isStatic())
+    #set ($param = "#getJniMethodParam($m, $useJniHelper)")
+    #set ($returnType = "${m.toJniTypeForReturn($useJniHelper)}")
+    #set ($castReturnType = $m.jniReturnTypeNeedCast())
+    #set ($staticMod = "#if ($isStatic || !$useJniHelper)static #end")
+    #set ($constMod = "#if (!$isStatic && $useJniHelper)const #end")
+    // method: ${m.javaModifiers} ${m.returnType} ${m.methodName}(${m.javaParameters})
+    $staticMod$returnType ${m.methodName}${m.resolvedPostFix}(##
+#if (!$useJniHelper)##
+#if ($isStatic)##
+JNIEnv* env##
+#else##
+JNIEnv* env, jobject thiz##
+#end##
+#if ($param != ""), #end##
+#end##
+${param}) ${constMod}{
+#methodPrologue($useJniHelper, $isStatic)
+        #if (!$m.returnVoid)return #end##
+#if ($returnType != $m.jniReturnType)##
+${returnType}(##
+#end##
+#if ($castReturnType)##
+reinterpret_cast<${m.jniReturnType}>(##
+#end##
+env->Call#if ($isStatic)Static#end${m.getReturnTypeForJniCall()}Method(##
+#if ($isStatic)##
+getClassInitState().sClazz##
+#else##
+thiz##
+#end##
+, getClassInitState().sMethod_${m.methodName}_${m.index}#getJniMethodParamVal($m, $useJniHelper))##
+#if ($castReturnType)##
+)##
+#end##
+#if ($returnType != $m.jniReturnType)##
+)##
+#end##
+;
+    }
+
+#end
+#macro (buildFieldDefine $f $useJniHelper)
+    #set ($isStatic = $f.isStatic())
+    #set ($fieldId = "sField_${f.fieldName}_${f.index}")
+    #set ($returnType = "$f.toJniTypeForReturn($useJniHelper)")
+    #set ($staticMod = "#if ($isStatic || !$useJniHelper)static #end")
+    #set ($constMod = "#if (!$isStatic && $useJniHelper)const #end")
+    #set ($classOrObj = "#if ($isStatic)##
+getClassInitState().sClazz##
+#else##
+thiz##
+#end")
+    #set ($comment = "// field: ${f.javaModifiers} ${f.type} ${f.fieldName}")
+#if ($f.hasGetter)##
+    $comment
+    $staticMod$returnType get${f.camelCaseName}(##
+#if (!$useJniHelper)##
+JNIEnv* env##
+#if (!$isStatic)##
+, jobject thiz##
+#end##
+#end##
+) ${constMod}{
+#methodPrologue($useJniHelper, $isStatic)
+        return ##
+#if ($returnType != $f.jniType)##
+${returnType}(##
+#end##
+#if (${f.jniTypeNeedCast()})##
+reinterpret_cast<${f.jniType}>(##
+#end##
+env->Get#if ($isStatic)Static#end${f.getTypeForJniCall()}Field(${classOrObj}, getClassInitState().${fieldId})##
+#if (${f.jniTypeNeedCast()})##
+)##
+#end##
+#if ($returnType != $f.jniType)##
+)##
+#end##
+;
+    }
+#end
+
+#if ($f.hasSetter)##
+    $comment
+    ${staticMod}void set${f.camelCaseName}(##
+#if (!$useJniHelper)##
+JNIEnv* env, ##
+#if (!$isStatic)##
+jobject thiz, ##
+#end##
+#end##
+${f.toJniTypeForParam($useJniHelper)} ${f.fieldName}) ${constMod}{
+#methodPrologue($useJniHelper, $isStatic)
+        env->Set#if ($isStatic)Static#end${f.getTypeForJniCall()}Field(${classOrObj}, getClassInitState().${fieldId}, ${f.fieldName}##
+#if ($returnType != $f.jniType)##
+.get()##
+#end##
+);
+    }
+#end
+
+#end
+
+#foreach ($namespace in $namespaces)
+namespace $namespace {
+#end
+class $className {
+
+public:
+    static constexpr auto FULL_CLASS_NAME = u8"$slashClassName";
+
+#foreach ($constant in $constants)
+    $constant
+#end
+
+public:
+    static bool initClazz(JNIEnv* env);
+
+    static void releaseClazz(JNIEnv* env);
+
+    static void assertInited(JNIEnv* env) {
+        auto initClazzSuccess = initClazz(env);
+        assert(initClazzSuccess);
+    }
+
+#foreach ($ctor in $constructors)
+#buildConstructorDefine($ctor, false)
+#end
+
+#foreach ($m in $methods)
+#buildMethodDefine($m, false)
+#end
+
+#foreach ($f in $fields)
+#buildFieldDefine($f, false)
+#end
+
+private:
+    ::jenny::LocalRef<jobject> _local;
+    ::jenny::GlobalRef<jobject> _global;
+
+public:
+    ::jenny::LocalRef<jobject> getThis(bool owned = true) const {
+        if (_local) {
+            if (owned) {
+                return _local;
+            } else {
+                return ::jenny::LocalRef<jobject>(_local.get(), false);
+            }
+        } else {
+            return _global.toLocal();
+        }
+    }
+
+    // jni helper constructors
+    ${className}(jobject ref, bool owned = false): _local(ref, owned) {
+       assertInited(::jenny::Env().get());
+    }
+
+    ${className}(::jenny::LocalRef<jobject> ref): _local(std::move(ref)) {
+       assertInited(::jenny::Env().get());
+    }
+
+    ${className}(::jenny::GlobalRef<jobject> ref): _global(std::move(ref)) {
+       assertInited(::jenny::Env().get());
+    }
+
+#foreach ($ctor in $constructors)
+#buildConstructorDefine($ctor, true)
+#end
+
+#foreach ($m in $methods)
+#buildMethodDefine($m, true)
+#end
+
+#foreach ($f in $fields)
+#buildFieldDefine($f, true)
+#end
+
+private:
+    struct ClassInitState {
+#if ($threadSafe)
+        // thread safe init
+        std::atomic_bool sInited {};
+        std::mutex sInitLock {};
+#else
+        bool sInited = false;
+#end
+        jclass sClazz = nullptr;
+
+#foreach ($ctor in $constructors)
+        jmethodID sConstruct_${ctor.index} = nullptr;
+#end
+
+#foreach ($m in $methods)
+        jmethodID sMethod_${m.methodName}_${m.index} = nullptr;
+#end
+
+#foreach ($f in $fields)
+        jfieldID sField_${f.fieldName}_${f.index} = nullptr;
+#end
+    }; // endof struct ClassInitState
+
+    static inline ClassInitState& getClassInitState() {
+        static ClassInitState classInitState;
+        return classInitState;
+    }
+
+};
+
+
+/*static*/ inline bool $className::initClazz(JNIEnv* env) {
+#[[#define]]# JENNY_CHECK_NULL(val)                      \
+       do {                                        \
+           if ((val) == nullptr) {                 \
+#if ($errorLogger)
+               ${errorLogger}(env, "can't init ${className}::" #val); \
+#else
+               env->ExceptionDescribe();           \
+#end
+               return false;                       \
+           }                                       \
+       } while(false)
+
+    auto& state = getClassInitState();
+#if ($threadSafe)
+    if (!state.sInited) {
+        std::lock_guard<std::mutex> lg(state.sInitLock);
+#end
+        if (!state.sInited) {
+            auto clazz = env->FindClass(FULL_CLASS_NAME);
+            JENNY_CHECK_NULL(clazz);
+            state.sClazz = reinterpret_cast<jclass>(env->NewGlobalRef(clazz));
+            env->DeleteLocalRef(clazz);
+            JENNY_CHECK_NULL(state.sClazz);
+
+#foreach ($ctor in $constructors)
+            #set ($name = "state.sConstruct_${ctor.index}")
+            $name = env->GetMethodID(state.sClazz, "<init>", "$ctor.signature");
+            JENNY_CHECK_NULL($name);
+#end
+
+#foreach ($m in $methods)
+            #set ($name = "state.sMethod_${m.methodName}_${m.index}")
+            #set ($isStatic = "#if ($m.isStatic())Static#end")
+            $name = env->Get${isStatic}MethodID(state.sClazz, "$m.methodName", "$m.signature");
+            JENNY_CHECK_NULL($name);
+#end
+
+#foreach ($f in $fields)
+            #set ($name = "state.sField_${f.fieldName}_${f.index}")
+            #set ($isStatic = "#if ($f.isStatic())Static#end")
+            $name = env->Get${isStatic}FieldID(state.sClazz, "$f.fieldName", "$f.signature");
+            JENNY_CHECK_NULL($name);
+#end
+
+            state.sInited = true;
+        }
+#if ($threadSafe)
+    }
+#end
+#[[#undef]]# JENNY_CHECK_NULL
+   return true;
+}
+
+/*static*/ inline void $className::releaseClazz(JNIEnv* env) {
+    auto& state = getClassInitState();
+    if (state.sInited) {
+#if ($threadSafe)
+        std::lock_guard<std::mutex> lg(state.sInitLock);
+#end
+        if (state.sInited) {
+            env->DeleteGlobalRef(state.sClazz);
+            state.sClazz = nullptr;
+            state.sInited = false;
+        }
+    }
+}
+
+
+#foreach ($namespace in $namespaces)
+} // end of namespace $namespace
+#end

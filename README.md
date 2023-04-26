@@ -1,48 +1,71 @@
-# Jenny -- the JNI helper
-
-[![CI][CI_B]][CI]  [![Publish][PUB_B]][PUB] [![MavenCentral][MV_B]][MV] ![GitHub code size in bytes][CS_B] ![GitHub][LC_B]
-
-[CI_B]: https://github.com/LanderlYoung/Jenny/workflows/Android%20CI/badge.svg
-[CI]: https://github.com/LanderlYoung/Jenny/actions?workflow=Android+CI
-[PUB_B]: https://github.com/LanderlYoung/Jenny/workflows/Publish/badge.svg
-[PUB]: https://github.com/LanderlYoung/Jenny/actions?workflow=Publish
-[MV_B]: https://img.shields.io/maven-central/v/io.github.landerlyoung/jenny-annotation
-[MV]: https://search.maven.org/artifact/io.github.landerlyoung/jenny-compiler
-[CS_B]: https://img.shields.io/github/languages/code-size/LanderlYoung/Jenny
-[LC_B]: https://img.shields.io/github/license/LanderlYoung/Jenny
+# Jenny -- a JNI code generator
 
 ---
 
 
-## Intro
+## 简介
 
-**Jenny is a java annotation processor, which helps you generate C/C++ code for JNI calls according to your java native class.**
+**Jenny**是一个JNI代码生成器。它基于Java注解，在编译阶段，生成与Java类相对应的Native代码框架；开发者只需在其中补充相应方法的具体实现即可完成JNI方法编写，无需关心实现JNI所需的方法注册、类型转换等繁琐且乏味的细节。
 
-Jenny comes with two main part:
-1. Native**Glue**Generator: which generate skeleton C++ code for your native class/method.
-2. Native**Proxy**Generator: which generate helper C++ class for you to call java APIs through JNI interface, including create new instance, call method, get/set fields, define constants.
+本项目基于[https://github.com/LanderlYoung/Jenny](https://github.com/LanderlYoung/Jenny)改进，使用[Velocity](https://velocity.apache.org/)模板进行相关代码的生成，并根据内部使用的场景，屏蔽了一些配置项。更多细节请自行查阅代码。
 
-**Glue** stands for c++ code to implement Java native method. (Glue java and C++.)
+Jenny目前可生成两类代码：
+1. Java调用Native：可自动对应Java类中的native方法，生成相应的原生代码。
+2. Native调用Java：可生成C++辅助类，便于从Native访问Java相关的类、方法、成员等。
 
-**Proxy** stands for c++ class to provide calls to java from c++. (c++ side proxy for the java class.)
 
-And there is an extra bonus -- [jnihelper.h](cpp/jnihelper.h) that uses C++ RAII technology to simplify JNI APIs. When opt-in (with `'jenny.useJniHelper'=true`), the generated proxy class will also add methods using `jnihelper`, which makes life even happier!
+## 如何使用
 
-## Why Jenny?
+### 1、配置Gradle
 
-When writing JNI code, people usually come across APIs where java method/field/type signatures are required, some of them like `JNIEnv::RegisterNatives`, `JNIEnv::FindClass`, `JNIEnv::GetMethodID`, etc. It is very hard to hand-craft those signatures correctly and efficiently, so programmers often waste much time writing and debugging those boilerplate.
+在需要生成JNI代码的模块目录下，在`build.gradle`中添加如下依赖：
 
-Jenny is now your JNI code maid, who takes care of all those boilerplate so you can be even more productive.
+```groovy
 
-## At a glance
+dependencies {
+    ......
+    def jenny_version = '1.3.1-SNAPSHOT'
+    compileOnly "io.github.landerlyoung:jenny-annotation:$jenny_version"
+    // 对于Java项目
+    annotationProcessor "io.github.landerlyoung:jenny-compiler:$jenny_version"
+    // 对于Kotlin项目使用如下配置
+    // kapt "io.github.landerlyoung:jenny-compiler:$jenny_version"
+}
+```
 
-Let's see what the generated code is.
+### 2、为Java代码添加注解
 
-You can find full code in [sample-gen]().
+在包含native方法定义的Java类上添加`@NativeClass`注解，Jenny即可生成相应的Java->Native代码。
 
-### Glue
+在需要在Native端使用的Java/Kotlin类上添加`@NativeProxy(allMethods = true, allFields = true)`注解，Jenny即可生成相应的Native->Java代理类，并为类中的所有成员及方法自动生成Native代理方法。更细粒度的控制，如只针对特定方法或成员进行代理，可结合`@NativeMethodProxy`及`@NativeFieldProxy`注解使用。
 
-Java class.
+如果要对第三方库中的类生成Native代理代码，可在实现相应功能的native方法上使用`@NativeProxyForClasses` 注解，但由于运行时版本匹配等原因，可能会引入较大的稳定性风险，所以通常不建议这种直接在Native端调用相应API的使用方式；更好的方式是在Java端进行一些封装转换，处理好相应的异常，然后从C++端去调用自己封装的这些API。
+
+### 3、使用生成的代码
+
+项目成功编译之后，可在`build/generated/ap_generated_sources/debug/out/jnigen`目录下找到生成的代码（对于Kotlin项目，其位置在`build/generated/source/kapt/debug/jnigen`）。生成代码的位置也可通过配置项进行更改，详见[配置](#配置)。
+
+将目录中相关文件拷贝至你的C++代码目录，并将其中的.cpp文件及.h文件配置到`CMakeFileList.txt`中即可开始使用。生成代码的结构与内容可参见[生成结果示例](#生成结果示例)，一般来说，你只需要将实际实现逻辑填入Java->Native代码相应桩位中即可，其余文件不建议手动修改。
+
+**注意：在使用生成代码的时候，`include`目录结构建议不要随意变更，否则可能会影响相关头文件的有效引用。**
+
+
+## 配置
+
+支持的配置项及说明如下：
+
+| 名称 | 默认值 | 说明 |
+| :-: | :-: | :- |
+| `threadSafe` | `true` | 代理类的初始化是否需要支持线程安全 |
+| `errorLoggerFunction` | `null` | 如果配置了该项，则代理类发生类/方法/字段查找异常时会先记录日志。该方法必须是位于最顶端命名空间的一个C++方法，其签名是`void(JNIEnv* env, const char* error)` |
+| `outputDirectory` | `null` | 该配置项可控制生成代码的目录。注意每次编译都会用最新生成的文件覆盖，所以请勿直接在生成目录中修改代码，以免丢失。 |
+
+
+## 生成结果示例
+
+### Java -> Native
+
+Java类：
 
 ```java
 @NativeClass
@@ -53,7 +76,7 @@ public class NativeTest {
 }
 ```
 
-The generated Glue code.
+生成的Native代码：
 
 ```C++
 // NativeTest.h
@@ -72,30 +95,27 @@ inline bool registerNativeFunctions(JNIEnv* env) { ... }
 // NativeTest.cpp
 
 jint NativeTest::add(JNIEnv* env, jobject thiz, jint a, jint b) {
-    // TODO(jenny): generated method stub.
+    // TODO: generated method stub.
     return 0;
 }
 
 void NativeTest::cpp_magic(JNIEnv* env, jobject thiz, jstring s, jbyteArray data) {
-    // TODO(jenny): generated method stub.
+    // TODO: generated method stub.
 }
 
 ```
 
-Jenny generate:
+Jenny会生成如下内容：
 
-1. constant defines
-2. JNI register function
-3. native method declare with the same name as java methods
-4. native method implementation stubs
+1. 常量定义。
+2. JNI注册方法。
+3. C++方法定义。
+4. C++方法实现桩代码。开发者只需替换为实际逻辑实现代码即可。
+5. `jni_entry.cpp`：JNI入口（`JNI_OnLoad`）方法实现，其中会完成JNI方法的注册。
 
-You just need to fill the stubs with real code.
+### Native -> Java
 
-### Proxy
-
-The following [code][proxy_code] is a show case that C++ uses OkHttp to perfomr a HTTP get operation through JNI APIs.
-
-[proxy_code]: sample-android/src/main/cpp/ComputeIntensiveClass.cpp#L100
+下面代码展示了Native端如何通过生成的代理类调用Java端的相关接口发送HTTP请求：
 
 ```C++
 jstring func(jstring _url) {
@@ -110,7 +130,7 @@ jstring func(jstring _url) {
     return body.string().release();
 }
 ```
-And here is the equivlent java code.
+类似的Java实现代码如下所示：
 
 ```java
 String run(String url) throws IOException {
@@ -124,134 +144,9 @@ String run(String url) throws IOException {
 }
 ```
 
-If you are femiliar with JNI, you'd be surprised! The C++ code using Jenny just as clean as the Java code. Without Jenny it would be a nightmare.
+对比可见，通过代理类调用Java API，形式上与Java代码很接近，大大简化了通过JNI原生`env->FindClass`、`env->GetMethodID`、`env->CallXXXMethod`的繁琐易错调用步骤。
 
-And here is another real world comparesion using `URLConnection` api **with vs without jenny**. [🔗Follow the link to see the nightmare!](https://gist.github.com/LanderlYoung/1a203f519ba5f91b38c1d81534d63664)
-
-
-And also, here is another example without `jnihelper`.
-
-```C++
-void NativeDrawable::draw(JNIEnv *env, jobject thiz, jobject _canvas) {
-    auto bounds = GraphicsProxy::drawableGetBounds(env, thiz);
-
-    GraphicsProxy::setColor(env, state->paint, state->color());
-    GraphicsProxy::drawableCircle(
-        env, _canvas,
-        RectProxy::exactCenterX(env, bounds),
-        RectProxy::exactCenterY(env, bounds),
-        std::min(RectProxy::exactCenterX(env, bounds),
-                 RectProxy::exactCenterY(env, bounds)) * 0.7f,
-        state->paint
-    );
-}
-```
-
-## How to
-
-### Use in gradle
-
-Jenny comes with two component
-1. the annotation library
-2. the annotation-processor
-
-[![Download][MV_B]][MV] 👈👈👈 click here for latest version on maven central.
-
-```groovy
-
-dependencies {
-    compileOnly 'io.github.landerlyoung:jenny-annotation:1.0.0'
-    kapt 'io.github.landerlyoung:jenny-compiler:1.0.0'
-    // for non-kotlin project use:
-    // annotationProcessor 'io.github.landerlyoung:jenny-compiler:1.0.0'
-}
-```
-
-For kotlin project, you gonna need the `kotlin-kapt` plugin.
-
-That's it!
-
-The generated code directory depends on your compiler config, typically, for android project it's inside `build/generated/source/kapt/debug/jenny`, for java project it's `build/generated/sources/annotationProcessor/java/main/jenny`. Also, you can use your own directory with simple config, see below.
-
-You can use the generated code as you like, copy-past manually, or use gradle to copy them automatically (see sample in `sample-android/guild.gradle`).
-
-### Use annotations
-
-#### Annotations for glue
-
-Add `@NativeClass()` annotation to you native class in order to let Jenny spot you class, and then generate corresponding cpp source.
-
-Then Jenny would generate code for you. [sample-gen](sample-gen) contains samples for Jenny generated code.
-
-> Note: There is a config field in `NativeClass.dynamicRegisterJniMethods`, when `true` (the default value) will generate code registering JNI function dynamically on the JNI_OnLoad callback by `JNIEnv::RegisterNatives`, instead of using JNI function name conversions (what javah/javac does).
-
-#### Annotations for proxy
-
-Add `@NativeProxy` to your normal java/kotlin class, need to cooperate with `@NativeMethodProxy` and `@NativeFieldProxy`, please read the doc.
-
-Also, you can tell Jenny to generate code for libray classes by using the `@NativeProxyForClasses` annotation. <sup>(note)</sup>
-
-> (note): Use this feature with caution. When your compile-class-path and runtime-class-path have different version of the same class, it's easy to crash because the proxy can't find some method which appears in compile-time but not on runtime. For instance to generate proxy for [`java.net.http.HttpRequest`](https://docs.oracle.com/en/java/javase/11/docs/api/java.net.http/java/net/http/HttpRequest.html) compiled with java-11, ran with java-8, your code crashes because that class just don't exist before java-11.
->
-> In this case, the recommanded way is to write your own helper class, and generate proxy for it.
-
-## Configurations
-
-Jenny annotation processor arguments:
-
-| name | default value | meaning |
-| :-: | :-: | :- | 
-| `jenny.threadSafe` | `true` | The proxy class supports lazy init, this flag controls if the lazy init is thread safe or not. |
-| `jenny.errorLoggerFunction` | `null` | When proxy failed to find some method/class/field use the given function to do log before abort. The function must be a C++ function on top namespace with signature as `void(JNIEnv* env, const char* error)` |
-| `jenny.outputDirectory` | `null` | By default, Jenny generate filed to apt dst dir, use this argument to control where the generated files are. |
-| `jenny.fusionProxyHeaderName` | `jenny_fusion_proxies.h` | The `fusionProxyHeader` is a header file that include all generated proxy files and gives you a `jenny::initAllProxies` function to init all proxies at once, this flag changes the file name. |
-| `jenny.headerOnlyProxy` | `true` | The generated proxy file use header only fusion or not. |
-| `jenny.useJniHelper` | `false` | Turn on/off jnihelper |
-
-And also, there are some config in Jenny's annotations, please read the doc.
-
-## FAQ
-
-#### 1. How to passing arguments to annotation processor
-
-1. For kotlin project, it simple
-
-```groovy
-kapt {
-    // pass configurations to jenny
-    arguments {
-        arg("jenny.threadSafe", "false")
-        arg("jenny.errorLoggerFunction", "jennySampleErrorLog")
-        arg("jenny.outputDirectory", project.buildDir.absolutePath+"/test")
-        arg("jenny.headerOnlyProxy", "true")
-        arg("jenny.useJniHelper", "true")
-        arg("jenny.fusionProxyHeaderName", "JennyFisonProxy.h")
-    }
-}
-```
-
-2. For Android, you can also [do this](https://developer.android.com/studio/build/dependencies#processor-arguments).
-
-3. For Java Project, do this:
-
-```groovy
-compileJava {
-    options.compilerArgs += [
-            "-Ajenny.threadSafe=false",
-            "-Ajenny.useJniHelper=false",
-    ]
-}
-```
-
-
-#### 2. My JNI code crashes saying some class not found while the are really there?!
-
-When using JNI with multi-thread in C++, please be noticed the `pure` native thread (that is create in C++ then attached to jvm) has its class loader as the boot class loader, so on such thread you can only see java standard library classes. For more info, please refer to [here](https://developer.android.com/training/articles/perf-jni#native-libraries).
-
-To solve this problem, please init proxy classes on the `JNI_OnLoad` callback, and there is a `jenny_fusion_proxies.h` may by helpful.
 
 ## License
 
-Open sourced under the Apache License Version 2.0.
-
-If you like or are using this project, please start!
+Apache License Version 2.0.

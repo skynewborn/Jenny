@@ -1,11 +1,11 @@
 /**
  * Copyright 2016 landerlyoung@gmail.com
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -50,11 +50,6 @@ import java.lang.annotation.Target;
  *             <td><code>jenny.outputDirectory</code></td>
  *             <td><code>null</code></td>
  *             <td>By default, Jenny generate filed to apt dst dir, use this argument to control where the generated files are.</td>
- *         </tr>
- *         <tr>
- *             <td><code>jenny.fusionProxyHeaderName</code></td>
- *             <td><code>jenny_fusion_proxies.h</code></td>
- *             <td>The <code>fusionProxyHeader</code> is a header file that include all generated proxy files and gives you a <code>jenny::initAllProxies</code> function to init all proxies at once, this flag changes the file name.</td>
  *         </tr>
  *         <tr>
  *             <td><code>jenny.headerOnlyProxy</code></td>

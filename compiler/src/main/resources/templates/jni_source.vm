@@ -1,0 +1,23 @@
+#set ($canEdit = true)
+#parse("templates/notice.vm")
+#include "jnigen/jni/$headerName"
+
+#foreach ($namespace in $namespaces)
+namespace $namespace {
+#end
+
+#foreach ($method in $methods)
+/*
+ * Class:     $fullClassName
+ * Method:    $method.javaModifiers $method.returnType ${method.methodName}($method.javaParameters)
+ * Signature: $method.signature
+ */
+$method.jniReturnType ${className}::${method.symbol}($method.nativeParameters) {
+$method.methodStubBody
+}
+
+#end
+
+#foreach ($namespace in $namespaces)
+} // end of namespace $namespace
+#end

@@ -9,8 +9,8 @@ package io.github.landerlyoung.jenny
  * ```
  */
 class NamespaceHelper(namespace: String) {
-    private val namespaces: List<String> = namespace.split("::").map { it.trim() }
-            .filter { it.isNotEmpty() }
+    val namespaces: List<String> = namespace.split("::").map { it.trim() }
+        .filter { it.isNotEmpty() }
 
     val fileNamePrefix: String = namespaces.joinToString("_").let {
         if (it.isNotEmpty()) {
@@ -23,9 +23,4 @@ class NamespaceHelper(namespace: String) {
     // like std::chrono
     val namespaceNotation: String = namespaces.joinToString("::")
 
-    fun beginNamespace() = namespaces.joinToString(" ") { "namespace $it {" }
-
-    fun endNamespace() = if (namespaces.isNotEmpty())
-        namespaces.joinToString(" ", postfix = " // endof namespace ${namespaces.joinToString("::") { it }}") { "}" }
-    else ""
 }

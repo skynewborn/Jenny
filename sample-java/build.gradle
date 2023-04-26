@@ -1,7 +1,7 @@
 buildscript {
     repositories {
         mavenLocal()
-        jcenter()
+        mavenCentral()
     }
     dependencies {
         // NOTE: Do not place your application dependencies here; they belong
@@ -16,8 +16,7 @@ targetCompatibility = JavaVersion.VERSION_1_8
 
 compileJava {
     options.compilerArgs += [
-            "-Ajenny.threadSafe=false",
-            "-Ajenny.useJniHelper=false",
+            "-AthreadSafe=false",
     ]
 }
 

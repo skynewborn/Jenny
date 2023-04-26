@@ -8,9 +8,9 @@ import java.lang.annotation.Target;
 
 /**
  * Tell Jenny to generate proxy code for given classes.
- *
+ * <p>
  * These class usually come from third-part library or JDK.
- *
+ * <p>
  * This Annotation can be added to any class.
  *
  * <pre>

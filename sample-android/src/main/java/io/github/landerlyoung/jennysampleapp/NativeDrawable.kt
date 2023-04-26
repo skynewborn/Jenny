@@ -34,6 +34,7 @@ class NativeDrawable : Drawable() {
     override fun setAlpha(alpha: Int) {
     }
 
+    @Deprecated("Deprecated in Java")
     override fun getOpacity(): Int {
         return PixelFormat.OPAQUE
     }

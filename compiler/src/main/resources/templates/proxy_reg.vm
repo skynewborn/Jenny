@@ -1,0 +1,28 @@
+#parse("templates/notice.vm")
+#pragma once
+
+#include <jni.h>
+
+#foreach ($cls in $proxyClasses)
+#include "jnigen/proxy/${cls.headerFileName}"
+#end
+
+namespace jenny {
+
+inline bool initAllProxies(JNIEnv* env) {
+    bool success =
+#foreach ($cls in $proxyClasses)
+        $cls.namespace::$cls.name::initClazz(env)#if ($foreach.hasNext) &&
+#else;#end
+#end
+
+    return success;
+}
+
+inline void releaseAllProxies(JNIEnv* env) {
+#foreach ($cls in $proxyClasses)
+    $cls.namespace::$cls.name::releaseClazz(env);
+#end
+}
+
+} // end of namespace jenny

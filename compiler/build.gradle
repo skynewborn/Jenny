@@ -1,5 +1,8 @@
-apply plugin: 'java'
-apply plugin: 'kotlin'
+plugins {
+    id 'java-library'
+    id 'org.jetbrains.kotlin.jvm'
+}
+
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -9,7 +12,7 @@ java {
 sourceSets {
     main {
         resources {
-            srcDirs += rootProject.file("cpp")
+            srcDirs += project.file("cpp")
         }
     }
 }
@@ -17,11 +20,9 @@ sourceSets {
 dependencies {
     implementation project(':annotation')
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    implementation "com.google.escapevelocity:escapevelocity:1.1"
 }
 
-repositories {
-    mavenCentral()
-}
 compileKotlin {
     kotlinOptions {
         jvmTarget = "1.8"
